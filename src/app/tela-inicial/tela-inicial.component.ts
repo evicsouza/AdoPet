@@ -25,6 +25,7 @@ import { Usuario } from '../model/Usuario';
 import { Router, ActivatedRoute } from '@angular/router';
 import { Message } from 'primeng/components/common/api';
 import { AuthService } from '../services/auth.service';
+import { FormGroup, FormControl, Validators } from '../../../node_modules/@angular/forms';
 
 @Component({
   selector: 'app-tela-inicial',
@@ -32,71 +33,108 @@ import { AuthService } from '../services/auth.service';
   styleUrls: ['./tela-inicial.component.css'],
 })
 export class TelaInicialComponent implements OnInit {
+  cadastroForm: FormGroup;
   usuarioCadastro: UsuarioCadastro;
   usuario: Usuario;
   msgs: Message[];
   usuarios: Usuario[];
   user: Usuario = {
+    $key: '',
     email: '',
     senha: ''
   }
 
-  constructor(private usuarioService: UsuarioService, private route: Router, 
+  constructor(private usuarioService: UsuarioService, private route: Router,
     private rotaAtiva: ActivatedRoute, private authService: AuthService) {
     this.user = this.rotaAtiva.snapshot.params['user'];
-    this.usuario = {email:"", 
-                    senha:""};
+    this.usuario = {
+      $key: "",
+      email: "",
+      senha: "",
+      id: ""
+    };
     this.usuarios = [];
     this.msgs = [];
-		this.usuarioCadastro = {email:"", nome: "", senha:""};
-   }
-   //colocar a logo
+    this.usuarioCadastro = {
+      $key: "",
+      email: "",
+      nome: "",
+      senha: "",
+      id: ""
+    };
+    this.cadastroForm = new FormGroup({
+      email: new FormControl('', [
+        Validators.required,
+        Validators.pattern("[^ @]*@[^ @]*"),
+      ]),
+      senha: new FormControl('', [
+        Validators.required,
+        Validators.minLength(6)
+      ]),
+      nome: new FormControl('', [
+        Validators.required
+      ]),
+    });
+  }
+  //colocar a logo
 
   ngOnInit() {
     this.usuarioService.getUsuarios();
   }
+  onSubmit(formData) {
+    if (formData.valid) {
+      this.authService.signInRegular(formData).then(resultado => {
+        this.route.navigate(['/feed/listar-animais']);
+      }).catch(erro => {
+        //this.erro = erro;
+        console.log("erro");
+      });
+    }
+  }
 
   signInWithGoogle() {
     this.authService.signInWithGoogle()
-    .then((res) => {
-        this.route.navigate(['/feed/listar-animais'])
+      .then((res) => {
+        this.route.navigate(['/feed/listar-animais']);
       })
       .catch((err) => console.log(err));
-    }
-    
-    signInWithEmail() {
-  
-      this.authService.signInRegular(this.user.email, this.user.senha)
-        .then((res) => {
-          console.log(res);
-          this.route.navigate(['/feed/listar-animais']);
-        })
-        .catch((err) => console.log('error: ' + err));
-    }
-    entrar(){
-   /* let podePassar: boolean = false;
-    podePassar = this.usuarioService.verificar(this.usuario);
-    if(podePassar == true){
-      console.log("entrooouu");
-      this.route.navigate(["feed"]);
-    }else{
-      console.log("pegou mas não pode entrar");
-      //this.showError();
-    }*/
   }
- 
-  salvar(){
-    this.usuarioService.salvar(this.usuarioCadastro);
+
+  signInWithEmail() {
+    this.authService.signInRegular(FormData)
+      .then((res) => {
+        console.log(res);
+        this.route.navigate(['/feed/listar-animais']);
+      })
+      .catch((err) => console.log('error: ' + err));
+  }
+  entrar() {
+    /* let podePassar: boolean = false;
+     podePassar = this.usuarioService.verificar(this.usuario);
+     if(podePassar == true){
+       console.log("entrooouu");
+       this.route.navigate(["feed"]);
+     }else{
+       console.log("pegou mas não pode entrar");
+       //this.showError();
+     }*/
+  }
+
+ // salvar() {
+   // this.usuarioService.salvar(this.usuarioCadastro);
     //this.usuarioService.verificarSeFoiSalvo(this.usuarioCadastro);
     //sessionStorage.setItem("emailUsuario", this.usuario.email);
-    
-    this.route.navigate(['/feed/listar-animais']);
-  }
+
+  //  this.route.navigate(['/feed/listar-animais']);
+ // }
 
 
   showError() {
-		this.msgs = [];
-		this.msgs.push({ severity: 'error', summary: 'Login inexistente', detail: 'Verifique o login e a senha ou cadastre-se!' });
-	}
+    this.msgs = [];
+    this.msgs.push({
+      severity: 'error', summary: 'Login inexistente',
+      detail: 'Verifique o login e a senha ou cadastre-se!'
+    });
+  }
 
 }
