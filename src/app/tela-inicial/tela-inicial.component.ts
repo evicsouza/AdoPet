@@ -25,7 +25,10 @@ import { Usuario } from '../model/Usuario';
 import { Router, ActivatedRoute } from '@angular/router';
 import { Message } from 'primeng/components/common/api';
 import { AuthService } from '../services/auth.service';
-import { FormGroup, FormControl, Validators } from '../../../node_modules/@angular/forms';
+import { FormGroup, FormControl, Validators, FormBuilder } from '../../../node_modules/@angular/forms';
+
+type UserFields = 'email' | 'senha';
+type FormErrors = { [u in UserFields]: string };
 
 @Component({
   selector: 'app-tela-inicial',
@@ -33,6 +36,7 @@ import { FormGroup, FormControl, Validators } from '../../../node_modules/@angul
   styleUrls: ['./tela-inicial.component.css'],
 })
 export class TelaInicialComponent implements OnInit {
+  
   cadastroForm: FormGroup;
   usuarioCadastro: UsuarioCadastro;
   usuario: Usuario;
@@ -43,9 +47,26 @@ export class TelaInicialComponent implements OnInit {
     email: '',
     senha: ''
   }
+  newUser = true;
+  formErrors: FormErrors = {
+    'email': '',
+    'senha': '',
+  };
+  validationMessages = {
+    'email': {
+      'required': 'Email é obrigatório.',
+      'email': 'Email deve ser válido',
+    },
+    'senha': {
+      'required': 'Senha é obrigatória.',
+      'pattern': 'A senha deve conter letras e números.',
+      'minlength': 'O tamanho minimo para senha é de 6 caracteres.',
+      'maxlength': 'O tamanho máximo para senha é de 26 caracteres.',
+    },
+  };
 
   constructor(private usuarioService: UsuarioService, private route: Router,
-    private rotaAtiva: ActivatedRoute, private authService: AuthService) {
+    private rotaAtiva: ActivatedRoute, private authService: AuthService, private formBuilder: FormBuilder) {
     this.user = this.rotaAtiva.snapshot.params['user'];
     this.usuario = {
       $key: "",
@@ -55,42 +76,26 @@ export class TelaInicialComponent implements OnInit {
     };
     this.usuarios = [];
     this.msgs = [];
-    this.usuarioCadastro = {
-      $key: "",
-      email: "",
-      nome: "",
-      senha: "",
-      id: ""
-    };
-    this.cadastroForm = new FormGroup({
-      email: new FormControl('', [
-        Validators.required,
-        Validators.pattern("[^ @]*@[^ @]*"),
-      ]),
-      senha: new FormControl('', [
-        Validators.required,
-        Validators.minLength(6)
-      ]),
-      nome: new FormControl('', [
-        Validators.required
-      ]),
-    });
+    
+    
   }
   //colocar a logo
 
   ngOnInit() {
     this.usuarioService.getUsuarios();
   }
-  onSubmit(formData) {
-    if (formData.valid) {
-      this.authService.signInRegular(formData).then(resultado => {
-        this.route.navigate(['/feed/listar-animais']);
-      }).catch(erro => {
-        //this.erro = erro;
-        console.log("erro");
-      });
-    }
+  toggleForm() {
+    this.newUser = !this.newUser;
   }
+
+  signup() {
+    this.authService.emailSignUp(this.cadastroForm.value['email'], this.cadastroForm.value['password']);
+  }
+
+  login() {
+    this.authService.emailLogin(this.cadastroForm.value['email'], this.cadastroForm.value['password']);
+  }
+
 
   signInWithGoogle() {
     this.authService.signInWithGoogle()
@@ -100,33 +105,6 @@ export class TelaInicialComponent implements OnInit {
       .catch((err) => console.log(err));
   }
 
-  signInWithEmail() {
-    this.authService.signInRegular(FormData)
-      .then((res) => {
-        console.log(res);
-        this.route.navigate(['/feed/listar-animais']);
-      })
-      .catch((err) => console.log('error: ' + err));
-  }
-  entrar() {
-    /* let podePassar: boolean = false;
-     podePassar = this.usuarioService.verificar(this.usuario);
-     if(podePassar == true){
-       console.log("entrooouu");
-       this.route.navigate(["feed"]);
-     }else{
-       console.log("pegou mas não pode entrar");
-       //this.showError();
-     }*/
-  }
-
- // salvar() {
-   // this.usuarioService.salvar(this.usuarioCadastro);
-    //this.usuarioService.verificarSeFoiSalvo(this.usuarioCadastro);
-    //sessionStorage.setItem("emailUsuario", this.usuario.email);
-
-  //  this.route.navigate(['/feed/listar-animais']);
- // }
 
 
   showError() {
@@ -136,5 +114,43 @@ export class TelaInicialComponent implements OnInit {
       detail: 'Verifique o login e a senha ou cadastre-se!'
     });
   }
+  buildForm() {
+    this.cadastroForm = this.formBuilder.group({
+      'email': ['', [
+        Validators.required,
+        Validators.email,
+      ]],
+      'password': ['', [
+        Validators.pattern('^(?=.*[0-9])(?=.*[a-zA-Z])([a-zA-Z0-9]+)$'),
+        Validators.minLength(6),
+        Validators.maxLength(25),
+      ]],
+    });
+
+    this.cadastroForm.valueChanges.subscribe((data) => this.onValueChanged(data));
+    this.onValueChanged(); // reset validation messages
+  }
+  onValueChanged(data?: any) {
+    if (!this.cadastroForm) { return; }
+    const form = this.cadastroForm;
+    for (const field in this.formErrors) {
+      if (Object.prototype.hasOwnProperty.call(this.formErrors, field) && (field === 'email' || field === 'password')) {
+        // clear previous error message (if any)
+        this.formErrors[field] = '';
+        const control = form.get(field);
+        if (control && control.dirty && !control.valid) {
+          const messages = this.validationMessages[field];
+          if (control.errors) {
+            for (const key in control.errors) {
+              if (Object.prototype.hasOwnProperty.call(control.errors, key) ) {
+                this.formErrors[field] += `${(messages as {[key: string]: string})[key]} `;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
 
 }
